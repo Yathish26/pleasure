@@ -1,80 +1,82 @@
-// app/page.jsx (assuming app router)
-export const metadata = {
-  title: "PleasureX",
-  description: "Moments of Pleasure",
-};
+// app/page.jsx
+'use client';
 
-async function getEpornerVideos() {
-  const res = await fetch(
-    "https://www.eporner.com/api/v2/video/search/?per_page=50&query=all&thumbsize=medium&order=top-week&lq=true&format=json",
-    {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/89.0.4389.82 Safari/537.36"
-      },
-      cache: "no-store", // Avoid caching in server component
+import { useEffect, useState } from 'react';
+
+export default function Home() {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [images, setImages] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // Load uploaded images from public/uploads folder
+  useEffect(() => {
+    fetch('/uploads/list.json') // We'll generate this manually for now
+      .then(res => res.json())
+      .then(setImages)
+      .catch(() => setImages([]));
+  }, []);
+
+  const handleUpload = async (e) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+
+    setIsUploading(true);
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (res.ok) {
+      const { fileName } = await res.json();
+      setImages(prev => [...prev, fileName]);
+      setSelectedFile(null);
     }
-  );
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch videos from ePorner API");
-  }
-
-  const data = await res.json();
-  return data.videos;
-}
-
-
-export default async function Home() {
-  let videos = [];
-
-  try {
-    videos = await getEpornerVideos();
-  } catch (error) {
-    console.error("Failed to fetch videos:", error);
-  }
+    setIsUploading(false);
+  };
 
   return (
     <main className="bg-black min-h-screen text-white px-4 md:px-8 py-6">
-      {/* Header */}
       <header className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-semibold text-pink-500">PleasureX</h1>
+        <h1 className="text-4xl font-semibold text-pink-500">Image Hub</h1>
         <nav className="space-x-4 text-sm md:text-base">
-          <button className="hover:text-pink-400">Home</button>
-          <button className="hover:text-pink-400">Categories</button>
-          <button className="hover:text-pink-400">Live</button>
-          <button className="hover:text-pink-400">Favorites</button>
-          <button className="hover:text-pink-400">Login</button>
+          <span className="hover:text-pink-400 cursor-pointer">Home</span>
+          <span className="hover:text-pink-400 cursor-pointer">Upload</span>
         </nav>
       </header>
 
-      {/* Section: Top This Week */}
-      <section className="mb-10">
-        <h2 className="text-2xl font-bold mb-4">🔥 Top This Week</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {videos.map((video) => (
-            <a
-              href={video.url}
-              key={video.id}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-gray-800 rounded-lg overflow-hidden shadow hover:scale-105 transition-transform"
-            >
-              <img
-                src={video.default_thumb.src}
-                alt={video.title}
-                className="w-full h-32 object-cover"
-              />
-              <div className="p-2">
-                <p className="text-sm font-semibold line-clamp-2">{video.title}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
+      <form onSubmit={handleUpload} className="mb-6">
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => setSelectedFile(e.target.files[0])}
+          className="text-white"
+        />
+        <button
+          type="submit"
+          className="ml-4 bg-pink-500 hover:bg-pink-600 px-4 py-2 rounded"
+          disabled={isUploading}
+        >
+          {isUploading ? 'Uploading...' : 'Upload'}
+        </button>
+      </form>
 
-      {/* Footer */}
+      <h2 className="text-xl font-bold mb-4">Uploaded Images</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {images.map((img, idx) => (
+          <img
+            key={idx}
+            src={`/uploads/${img}`}
+            alt="Uploaded"
+            className="w-full rounded shadow"
+          />
+        ))}
+      </div>
+
       <footer className="text-center text-sm text-gray-500 mt-12">
-        © 2025 PleasureX. Powered by ePorner API.
+        © 2025 Image Hub
       </footer>
     </main>
   );
